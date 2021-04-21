@@ -26,7 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bluetooth.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,8 +46,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-volatile char rx[2];
-volatile char command[2] = "nn";
+
+extern volatile char command[2];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,19 +69,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == &htim10)
 	{
-		if(strcmp(command, "ff") == 0) printf("XD \r\n");
-		else printf("hmmmm \r\n");
+
+		if(strcmp(command, "ff") == 0) BT_send_message("XD \r\n");
+		else BT_send_message("hmmmm \r\n");
 	}
 }
 
-
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	strncpy(command, rx, 2);
-	printf("mmm\r\n");
-	HAL_UART_Receive_IT(&huart2, &rx, 2);
-}
 /* USER CODE END 0 */
 
 /**
@@ -120,7 +114,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart2, &rx, 2);
+
+  BT_start();
   HAL_TIM_Base_Start_IT(&htim10);
   /* USER CODE END 2 */
 
