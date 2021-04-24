@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bluetooth.h"
+#include "temperature_sensor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,7 @@
 /* USER CODE BEGIN PV */
 
 extern volatile char command[2];
+volatile uint8_t main_flag = 0;
 
 /* USER CODE END PV */
 
@@ -69,9 +71,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == &htim10)
 	{
-
-		if(strcmp(command, "ff") == 0) BT_send_message("XD \r\n");
-		else BT_send_message("hmmmm \r\n");
+		main_flag = 1;
 	}
 }
 
@@ -117,12 +117,23 @@ int main(void)
 
   BT_start();
   HAL_TIM_Base_Start_IT(&htim10);
+
+  float temperature = 0.0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if(main_flag)
+	  {
+		if(strcmp(command, "ff") == 0) BT_send_message("XD \r\n");
+		else BT_send_message("hmmmm \r\n");
+		temperature = TEMP_get_data();
+        printf("temp = %f \r\n", temperature);
+
+		main_flag = 0;
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
