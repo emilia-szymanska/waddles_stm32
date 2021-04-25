@@ -29,6 +29,7 @@
 #include "bluetooth.h"
 #include "temperature_sensor.h"
 #include "motors.h"
+#include "encoders.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,10 +51,13 @@
 /* USER CODE BEGIN PV */
 
 extern volatile char command[2];
+extern volatile uint16_t E1_rpm;
+extern volatile uint16_t E2_rpm;
+extern volatile uint16_t E3_rpm;
+extern volatile uint16_t E4_rpm;
+
 volatile uint8_t main_flag = 0;
 volatile uint8_t first_echo_flag = 0;
-volatile uint32_t IC_Val1 = 0;
-volatile uint32_t IC_Val2 = 0;
 volatile uint32_t difference = 0;
 volatile uint16_t distance = 0;
 
@@ -75,9 +79,13 @@ int _write (int file, char *ptr, int len)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if(htim == &htim10)
+	if(htim == &htim10)	// main loop
 	{
 		main_flag = 1;
+	}
+	if(htim == &htim9) // encoders
+	{
+		ENCODERS_get_rpm();
 	}
 }
 
@@ -118,7 +126,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			first_echo_flag = 0; // set it back to false
 		}
 	}
-
 }
 
 
@@ -167,15 +174,13 @@ int main(void)
 
   BT_start();
   MOTORS_start();
+  ENCODERS_start();
   HAL_TIM_Base_Start_IT(&htim10);
   HAL_TIM_Base_Start(&htim11);
 
 
   float temperature = 0.0;
-  uint16_t M1_encoder_value = 0;
-  uint16_t M2_encoder_value = 0;
-  uint16_t M1_ticks = 0;
-  uint16_t M2_ticks = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -219,19 +224,7 @@ int main(void)
 		  HCSR04_Read();
 		  printf("dist: %d cm\r\n", distance);
 		  printf("temp: %.2f \r\n", temperature);
-
-
-		  M1_encoder_value = __HAL_TIM_GET_COUNTER(&htim2);
-		  M2_encoder_value = __HAL_TIM_GET_COUNTER(&htim3);
-		  if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2))
-		  		M1_ticks = 0xFFFF - M1_encoder_value + 1;
-		  else M1_ticks = M1_encoder_value;
-		  if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3))
-			  	M2_ticks = 0xFFFF - M2_encoder_value + 1;
-		  else M2_ticks = M2_encoder_value;
-		  __HAL_TIM_SET_COUNTER(&htim2, 0);
-		  __HAL_TIM_SET_COUNTER(&htim3, 0);
-		  printf("encoder: %d \r\n", M1_ticks);
+		  printf("encoder: %d, %d, %d, %d \r\n", E1_rpm, E2_rpm, E3_rpm, E4_rpm);
 
 		  main_flag = 0;
 	  }
