@@ -28,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include "bluetooth.h"
 #include "temperature_sensor.h"
+#include "motors.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -77,10 +78,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim == &htim10)
 	{
 		main_flag = 1;
-	}
-	else if(htim == &htim11 && (first_echo_flag == 1 || first_echo_flag == 2))
-	{
-		BT_send_message("!\r\n");
 	}
 }
 
@@ -165,21 +162,14 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM10_Init();
   MX_TIM11_Init();
+  MX_TIM9_Init();
   /* USER CODE BEGIN 2 */
 
   BT_start();
+  MOTORS_start();
   HAL_TIM_Base_Start_IT(&htim10);
- // HAL_TIM_Base_Start(&htim11);
-  HAL_TIM_Base_Start_IT(&htim11);
+  HAL_TIM_Base_Start(&htim11);
 
-  HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
-  HAL_GPIO_WritePin(M1_PHASE_GPIO_Port, M1_PHASE_Pin, SET);
-  HAL_GPIO_WritePin(M2_PHASE_GPIO_Port, M2_PHASE_Pin, RESET);
 
   float temperature = 0.0;
   uint16_t M1_encoder_value = 0;
@@ -195,39 +185,41 @@ int main(void)
 	  if(main_flag)
 	  {
 
-		  if(strcmp(command, "ff") == 0)
+		  if(strcmp(command, "nn") == 0)
 		  {
 			  BT_send_message("PWM: 0\r\n");
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+		  	  MOTORS_set_speed(1, 0);
+		  	  MOTORS_set_speed(2, 0);
 		  }
 		  else if(strcmp(command, "ll") == 0)
 		  {
 			  BT_send_message("PWM: 25\r\n");
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 25);
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 25);
+			  MOTORS_set_speed(1, 25);
+			  MOTORS_set_speed(2, 25);
 		  }
 		  else if(strcmp(command, "rr") == 0)
 		  {
 			  BT_send_message("PWM: 50\r\n");
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 50);
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 50);
+			  MOTORS_set_speed(1, 50);
+			  MOTORS_set_speed(2, 50);
 		  }
 		  else if(strcmp(command, "bb") == 0)
 		  {
 			  BT_send_message("PWM: 75\r\n");
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 75);
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 75);
+			  MOTORS_set_speed(1, 75);
+			  MOTORS_set_speed(2, 75);
 		  }
-		  else if(strcmp(command, "cc") == 0)
+		  else if(strcmp(command, "ff") == 0)
 		  {
 			  BT_send_message("PWM: 100\r\n");
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 100);
-		  	  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 100);
+			  MOTORS_set_speed(1, 100);
+			  MOTORS_set_speed(2, 100);
 		  }
 		  temperature = TEMP_get_data();
 		  HCSR04_Read();
 		  printf("dist: %d cm\r\n", distance);
+		  printf("temp: %.2f \r\n", temperature);
+
 
 		  M1_encoder_value = __HAL_TIM_GET_COUNTER(&htim2);
 		  M2_encoder_value = __HAL_TIM_GET_COUNTER(&htim3);
@@ -239,6 +231,7 @@ int main(void)
 		  else M2_ticks = M2_encoder_value;
 		  __HAL_TIM_SET_COUNTER(&htim2, 0);
 		  __HAL_TIM_SET_COUNTER(&htim3, 0);
+		  printf("encoder: %d \r\n", M1_ticks);
 
 		  main_flag = 0;
 	  }
