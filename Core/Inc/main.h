@@ -59,16 +59,16 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define ENC_M4_A_Pin GPIO_PIN_0
-#define ENC_M4_A_GPIO_Port GPIOA
-#define ENC_M4_B_Pin GPIO_PIN_1
-#define ENC_M4_B_GPIO_Port GPIOA
+#define ENC_M1_A_Pin GPIO_PIN_0
+#define ENC_M1_A_GPIO_Port GPIOA
+#define ENC_M1_B_Pin GPIO_PIN_1
+#define ENC_M1_B_GPIO_Port GPIOA
 #define BT_TX_Pin GPIO_PIN_2
 #define BT_TX_GPIO_Port GPIOA
 #define BT_RX_Pin GPIO_PIN_3
 #define BT_RX_GPIO_Port GPIOA
-#define ENC_M1_A_Pin GPIO_PIN_5
-#define ENC_M1_A_GPIO_Port GPIOA
+#define ENC_M4_A_Pin GPIO_PIN_5
+#define ENC_M4_A_GPIO_Port GPIOA
 #define ENC_M2_A_Pin GPIO_PIN_6
 #define ENC_M2_A_GPIO_Port GPIOA
 #define ENC_M2_B_Pin GPIO_PIN_7
@@ -94,8 +94,8 @@ void Error_Handler(void);
 #define MOTOR_3_GPIO_Port GPIOA
 #define MOTOR_4_Pin GPIO_PIN_11
 #define MOTOR_4_GPIO_Port GPIOA
-#define ENC_M1_B_Pin GPIO_PIN_3
-#define ENC_M1_B_GPIO_Port GPIOB
+#define ENC_M4_B_Pin GPIO_PIN_3
+#define ENC_M4_B_GPIO_Port GPIOB
 #define ENC_M3_A_Pin GPIO_PIN_6
 #define ENC_M3_A_GPIO_Port GPIOB
 #define ENC_M3_B_Pin GPIO_PIN_7

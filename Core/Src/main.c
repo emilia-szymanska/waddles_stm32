@@ -26,10 +26,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "bluetooth.h"
 #include "temperature_sensor.h"
 #include "motors.h"
 #include "encoders.h"
+#include "ultrasonic_sensor.h"
+#include "pid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,6 +42,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TEMPERATURE_ALERT 100
+#define DISTANCE_LIMIT 8
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,11 +60,10 @@ extern volatile uint16_t E1_rpm;
 extern volatile uint16_t E2_rpm;
 extern volatile uint16_t E3_rpm;
 extern volatile uint16_t E4_rpm;
+extern volatile uint8_t command_flag;
 
 volatile uint8_t main_flag = 0;
-volatile uint8_t first_echo_flag = 0;
-volatile uint32_t difference = 0;
-volatile uint16_t distance = 0;
+volatile uint8_t control_flag = 0;
 
 /* USER CODE END PV */
 
@@ -85,50 +89,36 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	if(htim == &htim9) // encoders
 	{
-		ENCODERS_get_rpm();
+		control_flag = 1;
 	}
 }
 
-//////////////////////////////////////////////////////////////////
-void delay(uint16_t time)
+void start_peripherals()
 {
-	__HAL_TIM_SET_COUNTER(&htim11, 0);
-	while (__HAL_TIM_GET_COUNTER(&htim11) <  time);
-	__HAL_TIM_SET_COUNTER(&htim11, 0);
+	BT_start();
+	USONIC_start();
+	MOTORS_start();
+	ENCODERS_start();
+	HAL_TIM_Base_Start_IT(&htim10);
 }
 
-
-void HCSR04_Read (void)
+void stop_peripherals()
 {
-	HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);  // pull the TRIG pin HIGH
-	delay(10);  // wait for 10 us
-	HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);  // pull the TRIG pin low
-	first_echo_flag = 1;
-	while(first_echo_flag != 0);
-	distance = (uint16_t)((float)difference * .034/2.0f);
+	BT_stop();
+	USONIC_stop();
+	MOTORS_stop();
+	ENCODERS_stop();
+	HAL_TIM_Base_Stop_IT(&htim10);
 }
 
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void temperature_alert()
 {
-	if(GPIO_Pin == ECHO_Pin)
-	{
-		if (first_echo_flag == 1) // if the first value is not captured
-		{
-			__HAL_TIM_SET_COUNTER(&htim11, 0);
-			first_echo_flag = 2;  // set the first captured as true
-
-		}
-		else if (first_echo_flag == 2)   // if the first is already captured
-		{
-			difference = __HAL_TIM_GET_COUNTER(&htim11);  // read second value
-			//distance = difference * .034/2;
-			first_echo_flag = 0; // set it back to false
-		}
-	}
+	stop_peripherals();
+	float temperature = TEMPERATURE_ALERT;
+	while(temperature >= TEMPERATURE_ALERT)
+		temperature = TEMP_get_data();
+	start_peripherals();
 }
-
-
 
 /* USER CODE END 0 */
 
@@ -139,6 +129,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+  float temperature = 0.0;
+  uint8_t measurements = 8;
+  uint16_t distance_array[8];
+  uint16_t distance = 0;
+  uint16_t setpoints[4] = {SPEED_STOP};
+  uint16_t average_distance = 0;
+  PID_handler pid_m1, pid_m2, pid_m3, pid_m4;
+  float p = 1.0f, i = 20.0f, d = 0.00f;
 
   /* USER CODE END 1 */
 
@@ -171,16 +169,19 @@ int main(void)
   MX_TIM11_Init();
   MX_TIM9_Init();
   /* USER CODE BEGIN 2 */
+  start_peripherals();
+  PID_init(&pid_m1, p, i, d);
+  PID_init(&pid_m2, p, i, d);
+  PID_init(&pid_m3, p, i, d);
+  PID_init(&pid_m4, p, i, d);
 
-  BT_start();
-  MOTORS_start();
-  ENCODERS_start();
-  HAL_TIM_Base_Start_IT(&htim10);
-  HAL_TIM_Base_Start(&htim11);
+  distance = USONIC_get_distance();
+  for(uint8_t i = 0; i < measurements; i++)
+	  distance_array[i] = distance;
+  uint8_t current_index = 0;
+  uint8_t distance_sum = measurements * distance;
 
-
-  float temperature = 0.0;
-
+  average_distance = 1000;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -189,44 +190,103 @@ int main(void)
   {
 	  if(main_flag)
 	  {
+		  temperature = TEMP_get_data();
+		  if(temperature >= TEMPERATURE_ALERT)
+		  {
+		  	  setpoints_to_zeros(setpoints);
+			  temperature_alert();
+		  }
+		  distance = USONIC_get_distance();
+		  distance_sum = distance_sum - distance_array[current_index] +  distance;
+		  distance_array[current_index] = distance;
+		  current_index = (current_index + 1) % measurements;
+		  average_distance = distance_sum / measurements;
+		  main_flag = 0;
+	  }
+	  if(command_flag)
+	  {
+		  printf("%s\r\n", command);
 
 		  if(strcmp(command, "nn") == 0)
 		  {
-			  BT_send_message("PWM: 0\r\n");
-		  	  MOTORS_set_speed(1, 0);
-		  	  MOTORS_set_speed(2, 0);
+			  setpoints_to_zeros(setpoints);
 		  }
 		  else if(strcmp(command, "ll") == 0)
 		  {
-			  BT_send_message("PWM: 25\r\n");
-			  MOTORS_set_speed(1, 25);
-			  MOTORS_set_speed(2, 25);
+		  	  setpoints_to_const(setpoints);
+		  	  MOTORS_go_left();
 		  }
 		  else if(strcmp(command, "rr") == 0)
 		  {
-			  BT_send_message("PWM: 50\r\n");
-			  MOTORS_set_speed(1, 50);
-			  MOTORS_set_speed(2, 50);
+		  	  setpoints_to_const(setpoints);
+		  	  MOTORS_go_right();
 		  }
 		  else if(strcmp(command, "bb") == 0)
 		  {
-			  BT_send_message("PWM: 75\r\n");
-			  MOTORS_set_speed(1, 75);
-			  MOTORS_set_speed(2, 75);
+		  	  setpoints_to_const(setpoints);
+		  	  MOTORS_go_backward();
 		  }
 		  else if(strcmp(command, "ff") == 0)
 		  {
-			  BT_send_message("PWM: 100\r\n");
-			  MOTORS_set_speed(1, 100);
-			  MOTORS_set_speed(2, 100);
+			  if(average_distance <= DISTANCE_LIMIT)
+			  {
+			  	  setpoints_to_zeros(setpoints);
+			  }
+			  else
+			  {
+				  setpoints_to_const(setpoints);
+				  MOTORS_go_forward();
+			  }
 		  }
-		  temperature = TEMP_get_data();
-		  HCSR04_Read();
-		  printf("dist: %d cm\r\n", distance);
-		  printf("temp: %.2f \r\n", temperature);
-		  printf("encoder: %d, %d, %d, %d \r\n", E1_rpm, E2_rpm, E3_rpm, E4_rpm);
-
-		  main_flag = 0;
+		  else if(strcmp(command, "fl") == 0)
+		  {
+			  if(average_distance <= DISTANCE_LIMIT)
+			  {
+			  	  setpoints_to_zeros(setpoints);
+			  }
+			  else
+			  {
+				  setpoints_to_fl_br(setpoints);
+				  MOTORS_go_forwardleft();
+			  }
+		  }
+		  else if(strcmp(command, "fr") == 0)
+		  {
+			  if(average_distance <= DISTANCE_LIMIT)
+			  {
+				  setpoints_to_zeros(setpoints);
+			  }
+			  else
+			  {
+				  setpoints_to_fr_bl(setpoints);
+		  	  	  MOTORS_go_forwardright();
+			  }
+		  }
+		  else if(strcmp(command, "bl") == 0)
+		  {
+		  	  setpoints_to_fr_bl(setpoints);
+		  	  MOTORS_go_backwardleft();
+		  }
+		  else if(strcmp(command, "br") == 0)
+		  {
+		  	  setpoints_to_fl_br(setpoints);
+		  	  MOTORS_go_backwardright();
+		  }
+		  else if(strcmp(command, "cc") == 0)
+		  {
+		  	  MOTORS_rotate();
+		  	  setpoints_to_const(setpoints);
+		  }
+		  command_flag = 0;
+	  }
+	  if(control_flag)
+	  {
+		  ENCODERS_get_rpm();
+		  MOTORS_set_speed(1, PID_output(&pid_m1, setpoints[0], E1_rpm));
+		  MOTORS_set_speed(2, PID_output(&pid_m2, setpoints[1], E2_rpm));
+		  MOTORS_set_speed(3, PID_output(&pid_m3, setpoints[2], E3_rpm));
+		  MOTORS_set_speed(4, PID_output(&pid_m4, setpoints[3], E4_rpm));
+		  control_flag = 0;
 	  }
     /* USER CODE END WHILE */
 
