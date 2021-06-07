@@ -180,8 +180,7 @@ int main(void)
 	  distance_array[i] = distance;
   uint8_t current_index = 0;
   uint8_t distance_sum = measurements * distance;
-
-  average_distance = 1000;
+  average_distance = distance;
   /* USER CODE END 2 */
 
   /* Infinite loop */
