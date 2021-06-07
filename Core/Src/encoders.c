@@ -9,10 +9,19 @@ volatile uint16_t E4_rpm = 0;
 void ENCODERS_start()
 {
 	HAL_TIM_Base_Start_IT(&htim9);
-	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
-	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL);
-	HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL);
+	HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL); //E4
+	HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL); //E2
+	HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL); //E3
+	HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL); //E1
+}
+
+void ENCODERS_stop()
+{
+	HAL_TIM_Base_Stop_IT(&htim9);
+	HAL_TIM_Encoder_Stop(&htim2, TIM_CHANNEL_ALL); //E4
+	HAL_TIM_Encoder_Stop(&htim3, TIM_CHANNEL_ALL); //E2
+	HAL_TIM_Encoder_Stop(&htim4, TIM_CHANNEL_ALL); //E3
+	HAL_TIM_Encoder_Stop(&htim5, TIM_CHANNEL_ALL); //E1
 }
 
 void ENCODERS_get_rpm()
@@ -27,14 +36,14 @@ void ENCODERS_get_rpm()
 	uint16_t E4_ticks = 0;
 
 
-	E1_value = __HAL_TIM_GET_COUNTER(&htim2);
+	E4_value = __HAL_TIM_GET_COUNTER(&htim2);
 	E2_value = __HAL_TIM_GET_COUNTER(&htim3);
 	E3_value = __HAL_TIM_GET_COUNTER(&htim4);
-	E4_value = __HAL_TIM_GET_COUNTER(&htim5);
+	E1_value = __HAL_TIM_GET_COUNTER(&htim5);
 
 	if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim2))	// 32bit
-		E1_ticks = 0xFFFFFFFF - E1_value + 1;
-	else E1_ticks = E1_value;
+		E4_ticks = 0xFFFFFFFF - E4_value + 1;
+	else E4_ticks = E4_value;
 
 	if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3))	// 16bit
 		E2_ticks = 0xFFFF - E2_value + 1;
@@ -45,16 +54,16 @@ void ENCODERS_get_rpm()
 	else E3_ticks = E3_value;
 
 	if(__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim5))	// 32bit
-		E4_ticks = 0xFFFFFFFF - E4_value + 1;
-	else E4_ticks = E4_value;
+		E1_ticks = 0xFFFFFFFF - E1_value + 1;
+	else E1_ticks = E1_value;
 
 	E1_rpm = E1_ticks * 10 / 3;
 	E2_rpm = E2_ticks * 10 / 3;
 	E3_rpm = E3_ticks * 10 / 3;
 	E4_rpm = E4_ticks * 10 / 3;
 
-	__HAL_TIM_SET_COUNTER(&htim2, 0);
-	__HAL_TIM_SET_COUNTER(&htim3, 0);
-	__HAL_TIM_SET_COUNTER(&htim4, 0);
-	__HAL_TIM_SET_COUNTER(&htim5, 0);
+	__HAL_TIM_SET_COUNTER(&htim2, 0); //E4
+	__HAL_TIM_SET_COUNTER(&htim3, 0); //E2
+	__HAL_TIM_SET_COUNTER(&htim4, 0); //E3
+	__HAL_TIM_SET_COUNTER(&htim5, 0); //E1
 }
