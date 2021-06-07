@@ -7,4 +7,6 @@ void BT_send_message();
 
 void BT_start();
 
+void BT_stop();
+
 #endif /* INC_BLUETOOTH_H_ */
